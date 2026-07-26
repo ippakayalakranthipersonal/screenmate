@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Screening Interview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --paper: #F7F5F1;
+    --ink: #1C1E1B;
+    --ink-soft: #52564F;
+    --teal: #16423C;
+    --teal-soft: #E4ECEA;
+    --brass: #C48A3B;
+    --alert: #B84C3E;
+    --sage: #7C8B7A;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    color: var(--sage);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 32px;
+    line-height: 1.25;
+    margin: 0 0 12px;
+    color: var(--teal);
+  }
+
+  p.sub {
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0 0 32px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 32px;
+    border: 1px solid #E5E2DA;
+  }
+
+  #google-signin-btn {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+  }
+
+  .consent {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-top: 20px;
+    line-height: 1.6;
+    padding-top: 20px;
+    border-top: 1px solid #EEEBE3;
+  }
+
+  .progress {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 24px;
+  }
+  .progress .dot {
+    height: 4px;
+    flex: 1;
+    background: #E5E2DA;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress .dot.done { background: var(--teal); }
+  .progress .dot.active { background: var(--brass); }
+
+  .question-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--sage);
+    margin-bottom: 10px;
+  }
+
+  .video-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: var(--ink);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 24px 0;
+  }
+
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .rec-indicator {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+  .rec-indicator.live { display: flex; }
+  .rec-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--alert);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.85); }
+  }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .record-ring {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    border: 2px solid var(--teal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: box-shadow 0.3s ease;
+    background: #fff;
+  }
+  .record-ring.live {
+    box-shadow: 0 0 0 8px rgba(196,138,59,0.18);
+    border-color: var(--brass);
+  }
+  .record-ring .core {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--teal);
+    transition: all 0.25s ease;
+  }
+  .record-ring.live .core {
+    border-radius: 6px;
+    background: var(--alert);
+    width: 22px;
+    height: 22px;
+  }
+
+  button.primary {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 28px;
+    cursor: pointer;
+    width: 100%;
+  }
+  button.primary:disabled {
+    background: #C9C6BD;
+    cursor: not-allowed;
+  }
+
+  .actions { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+  .hint { text-align: center; font-size: 13px; color: var(--sage); margin-top: 14px; }
+
+  .done-mark {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--teal-soft); color: var(--teal);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; margin-bottom: 20px;
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- SCREEN 1: Sign in -->
+  <div id="screen-signin">
+    <div class="eyebrow">Screening interview</div>
+    <h1 id="role-title">Loading your interview…</h1>
+    <p class="sub">This should take about 8–10 minutes. You'll answer a
+      short set of questions on camera, one at a time — there's no live
+      person on the other end, so take your time with each answer.</p>
+
+    <div class="card">
+      <div id="google-signin-btn"></div>
+      <p class="consent">
+        By continuing, you confirm this session's video and audio will be
+        recorded and shared directly with the employer for this role. Your
+        recordings are not stored anywhere except the employer's own
+        account.
+      </p>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Interview -->
+  <div id="screen-interview" class="hidden">
+    <div class="progress" id="progress-dots"></div>
+    <div class="question-label" id="question-counter">Question 1 of 5</div>
+    <h1 id="question-text">—</h1>
+
+    <div class="video-frame">
+      <video id="preview" autoplay muted playsinline></video>
+      <div class="rec-indicator" id="rec-indicator">
+        <span class="rec-dot"></span>
+        <span id="rec-timer">00:00</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="record-ring" id="record-ring">
+        <div class="core"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="next-btn" disabled>Record your answer to continue</button>
+    </div>
+    <p class="hint">Tap the circle to start recording, tap again to stop.</p>
+  </div>
+
+  <!-- SCREEN 3: Done -->
+  <div id="screen-done" class="hidden">
+    <div class="done-mark">✓</div>
+    <h1>That's everything — thank you.</h1>
+    <p class="sub">Your responses have been submitted. The hiring team will
+      review them and follow up if you're moving forward.</p>
+  </div>
+
+</div>
+
+<script>
+  // ---- CONFIG: point this at your deployed backend ----
+  const API_BASE = "http://localhost:3000"; // TODO: replace with your deployed backend URL
+  const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"; // TODO: fill in
+
+  const params = new URLSearchParams(location.search);
+  const linkId = params.get("link");
+
+  let questions = [];
+  let currentIndex = 0;
+  let candidate = null;
+  let mediaStream = null;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+  let isRecording = false;
+  let recTimerInterval = null;
+  let recSeconds = 0;
+
+  const screenSignin = document.getElementById("screen-signin");
+  const screenInterview = document.getElementById("screen-interview");
+  const screenDone = document.getElementById("screen-done");
+  const roleTitle = document.getElementById("role-title");
+  const questionText = document.getElementById("question-text");
+  const questionCounter = document.getElementById("question-counter");
+  const progressDots = document.getElementById("progress-dots");
+  const preview = document.getElementById("preview");
+  const recordRing = document.getElementById("record-ring");
+  const recIndicator = document.getElementById("rec-indicator");
+  const recTimer = document.getElementById("rec-timer");
+  const nextBtn = document.getElementById("next-btn");
+
+  async function loadLink() {
+    const res = await fetch(`${API_BASE}/api/links/${linkId}`);
+    if (!res.ok) {
+      roleTitle.textContent = "This interview link isn't valid.";
+      return;
+    }
+    const data = await res.json();
+    questions = data.questions;
+    roleTitle.textContent = `Screening interview — ${data.roleName || "Open role"}`;
+  }
+
+  function renderGoogleButton() {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: onGoogleSignIn,
+    });
+    google.accounts.id.renderButton(
+      document.getElementById("google-signin-btn"),
+      { theme: "outline", size: "large", shape: "pill", text: "continue_with" }
+    );
+  }
+
+  async function onGoogleSignIn(response) {
+    const res = await fetch(`${API_BASE}/api/candidate/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: response.credential }),
+    });
+    if (!res.ok) {
+      alert("Sign-in failed, please try again.");
+      return;
+    }
+    candidate = await res.json();
+    startInterview();
+  }
+
+  async function startInterview() {
+    screenSignin.classList.add("hidden");
+    screenInterview.classList.remove("hidden");
+
+    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    preview.srcObject = mediaStream;
+
+    renderProgressDots();
+    showQuestion(0);
+  }
+
+  function renderProgressDots() {
+    progressDots.innerHTML = "";
+    questions.forEach((_, i) => {
+      const dot = document.createElement("div");
+      dot.className = "dot";
+      dot.id = `dot-${i}`;
+      progressDots.appendChild(dot);
+    });
+  }
+
+  function showQuestion(index) {
+    currentIndex = index;
+    const q = questions[index];
+    questionText.textContent = q.prompt;
+    questionCounter.textContent = `Question ${index + 1} of ${questions.length}`;
+    nextBtn.disabled = true;
+    nextBtn.textContent = "Record your answer to continue";
+    document.querySelectorAll(".dot").forEach((d, i) => {
+      d.classList.toggle("active", i === index);
+      d.classList.toggle("done", i < index);
+    });
+  }
+
+  recordRing.addEventListener("click", () => {
+    if (!isRecording) startRecording();
+    else stopRecording();
+  });
+
+  function startRecording() {
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(mediaStream, { mimeType: "video/webm;codecs=vp8,opus" });
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = onRecordingStopped;
+    mediaRecorder.start();
+
+    isRecording = true;
+    recordRing.classList.add("live");
+    recIndicator.classList.add("live");
+    recSeconds = 0;
+    recTimer.textContent = "00:00";
+    recTimerInterval = setInterval(() => {
+      recSeconds++;
+      const m = String(Math.floor(recSeconds / 60)).padStart(2, "0");
+      const s = String(recSeconds % 60).padStart(2, "0");
+      recTimer.textContent = `${m}:${s}`;
+      const q = questions[currentIndex];
+      if (q.maxSeconds && recSeconds >= q.maxSeconds) stopRecording();
+    }, 1000);
+  }
+
+  function stopRecording() {
+    mediaRecorder.stop();
+    isRecording = false;
+    recordRing.classList.remove("live");
+    recIndicator.classList.remove("live");
+    clearInterval(recTimerInterval);
+  }
+
+  async function onRecordingStopped() {
+    const blob = new Blob(recordedChunks, { type: "video/webm" });
+    nextBtn.disabled = true;
+    nextBtn.textContent = "Uploading…";
+
+    const formData = new FormData();
+    formData.append("video", blob, `${questions[currentIndex].id}.webm`);
+    formData.append("candidateName", candidate.name);
+    formData.append("candidateEmail", candidate.email);
+    formData.append("questionId", questions[currentIndex].id);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/links/${linkId}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      nextBtn.disabled = false;
+      nextBtn.textContent = currentIndex === questions.length - 1 ? "Finish" : "Next question";
+    } catch (err) {
+      nextBtn.textContent = "Upload failed — tap circle to re-record";
+    }
+  }
+
+  nextBtn.addEventListener("click", async () => {
+    if (currentIndex < questions.length - 1) {
+      showQuestion(currentIndex + 1);
+    } else {
+      await fetch(`${API_BASE}/api/links/${linkId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateName: candidate.name, candidateEmail: candidate.email }),
+      });
+      mediaStream.getTracks().forEach((t) => t.stop());
+      screenInterview.classList.add("hidden");
+      screenDone.classList.remove("hidden");
+    }
+  });
+
+  loadLink();
+  window.addEventListener("load", () => {
+    const check = setInterval(() => {
+      if (window.google && google.accounts) {
+        clearInterval(check);
+        renderGoogleButton();
+      }
+    }, 100);
+  });
+</script>
+
+</body>
+</html>
