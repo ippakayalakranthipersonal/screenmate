@@ -60,8 +60,8 @@ app.post("/api/links", (req, res) => {
     return res.status(400).json({ error: "Recruiter has not connected OneDrive yet." });
   }
   const linkId = createScreeningLink(recruiterId, roleName, questions || DEFAULT_QUESTIONS);
-  res.json({ linkId, screeningUrl: `${process.env.FRONTEND_URL}/interview.html?link=${linkId}` });
-});
+  const pageUrl = process.env.CANDIDATE_PAGE_URL || `${process.env.FRONTEND_URL}/interview.html`;
+   res.json({ linkId, screeningUrl: `${pageUrl}?link=${linkId}` });
 
 app.get("/api/links/:linkId/submissions", (req, res) => {
   res.json(getSubmissions(req.params.linkId));
