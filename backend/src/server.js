@@ -19,6 +19,8 @@ import {
   getLinksByRecruiter,
   recordSubmission,
   getSubmissions,
+  createSession,
+  getRecruiterIdFromSession,
 } from "./store.js";
 import { DEFAULT_QUESTIONS } from "./questions.js";
 
@@ -40,9 +42,10 @@ app.get("/auth/microsoft/callback", async (req, res) => {
   try {
     const tokens = await exchangeCodeForTokens(code);
     await saveRecruiterTokens(recruiterId, tokens);
-    // Send the recruiter to their dashboard, with their ID in the URL so
-    // the dashboard page can remember it (saved into localStorage there).
-    const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard.html?recruiterId=${recruiterId}`;
+    const sessionToken = await createSession(recruiterId);
+    // The session token (not the recruiterId) is what proves "this really
+    // is that recruiter" from now on — the dashboard stores this instead.
+    const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard.html?session=${sessionToken}`;
     res.redirect(dashboardUrl);
   } catch (err) {
     console.error(err.response?.data || err.message);
@@ -50,10 +53,27 @@ app.get("/auth/microsoft/callback", async (req, res) => {
   }
 });
 
+// Checks the Authorization header for a valid session token and attaches
+// the corresponding recruiterId to the request. Every recruiter-only
+// action now requires this — just knowing a recruiterId is no longer
+// enough to act as that recruiter.
+async function requireSession(req, res, next) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "Missing session token." });
+
+  const recruiterId = await getRecruiterIdFromSession(token);
+  if (!recruiterId) return res.status(401).json({ error: "Invalid or expired session." });
+
+  req.recruiterId = recruiterId;
+  next();
+}
+
 // ---------- RECRUITER: create / list screening links ----------
 
-app.post("/api/links", async (req, res) => {
-  const { recruiterId, roleName, questions } = req.body;
+app.post("/api/links", requireSession, async (req, res) => {
+  const { roleName, questions } = req.body;
+  const recruiterId = req.recruiterId;
   if (!(await getRecruiterTokens(recruiterId))) {
     return res.status(400).json({ error: "Recruiter has not connected OneDrive yet." });
   }
@@ -62,9 +82,8 @@ app.post("/api/links", async (req, res) => {
   res.json({ linkId, screeningUrl: `${pageUrl}?link=${linkId}` });
 });
 
-app.get("/api/links", async (req, res) => {
-  const { recruiterId } = req.query;
-  if (!recruiterId) return res.status(400).json({ error: "recruiterId is required." });
+app.get("/api/links", requireSession, async (req, res) => {
+  const recruiterId = req.recruiterId;
   const links = await getLinksByRecruiter(recruiterId);
   const pageUrl = process.env.CANDIDATE_PAGE_URL || `${process.env.FRONTEND_URL}/interview.html`;
   res.json(links.map((l) => ({ ...l, screeningUrl: `${pageUrl}?link=${l.linkId}` })));
