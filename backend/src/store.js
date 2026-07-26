@@ -32,9 +32,15 @@ export async function initDb() {
       recruiter_id TEXT NOT NULL REFERENCES recruiters(recruiter_id),
       role_name TEXT,
       questions JSONB NOT NULL,
+      candidate_email TEXT,
+      completed_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT now()
     );
   `);
+  // Adds the new columns if this table already existed from before this
+  // feature — safe to run every time, does nothing if columns already exist.
+  await pool.query(`ALTER TABLE screening_links ADD COLUMN IF NOT EXISTS candidate_email TEXT;`);
+  await pool.query(`ALTER TABLE screening_links ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS submissions (
       id SERIAL PRIMARY KEY,
@@ -98,18 +104,18 @@ export async function getRecruiterTokens(recruiterId) {
   };
 }
 
-export async function createScreeningLink(recruiterId, roleName, questions = DEFAULT_QUESTIONS) {
+export async function createScreeningLink(recruiterId, roleName, candidateEmail, questions = DEFAULT_QUESTIONS) {
   const linkId = nanoid(10);
   await pool.query(
-    `INSERT INTO screening_links (link_id, recruiter_id, role_name, questions) VALUES ($1, $2, $3, $4)`,
-    [linkId, recruiterId, roleName, JSON.stringify(questions)]
+    `INSERT INTO screening_links (link_id, recruiter_id, role_name, candidate_email, questions) VALUES ($1, $2, $3, $4, $5)`,
+    [linkId, recruiterId, roleName, candidateEmail || null, JSON.stringify(questions)]
   );
   return linkId;
 }
 
 export async function getScreeningLink(linkId) {
   const { rows } = await pool.query(
-    `SELECT link_id, recruiter_id, role_name, questions FROM screening_links WHERE link_id = $1`,
+    `SELECT link_id, recruiter_id, role_name, questions, candidate_email, completed_at FROM screening_links WHERE link_id = $1`,
     [linkId]
   );
   if (rows.length === 0) return null;
@@ -119,7 +125,13 @@ export async function getScreeningLink(linkId) {
     recruiterId: row.recruiter_id,
     roleName: row.role_name,
     questions: row.questions,
+    candidateEmail: row.candidate_email,
+    completedAt: row.completed_at,
   };
+}
+
+export async function markLinkCompleted(linkId) {
+  await pool.query(`UPDATE screening_links SET completed_at = now() WHERE link_id = $1`, [linkId]);
 }
 
 export async function getLinksByRecruiter(recruiterId) {
