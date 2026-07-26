@@ -42,7 +42,7 @@ app.get("/auth/microsoft/callback", async (req, res) => {
     await saveRecruiterTokens(recruiterId, tokens);
     // Send the recruiter to their dashboard, with their ID in the URL so
     // the dashboard page can remember it (saved into localStorage there).
-    const dashboardUrl = `${process.env.FRONTEND_URL}/screenmate/frontend/dashboard.html?recruiterId=${recruiterId}`;
+    const dashboardUrl = `${process.env.FRONTEND_URL}/dashboard.html?recruiterId=${recruiterId}`;
     res.redirect(dashboardUrl);
   } catch (err) {
     console.error(err.response?.data || err.message);
