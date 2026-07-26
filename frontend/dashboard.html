@@ -158,13 +158,12 @@
   const API_BASE = "https://screenmate-jpvf.onrender.com"; // your backend URL
 
   const params = new URLSearchParams(location.search);
-  let recruiterId = params.get("recruiterId");
-  if (recruiterId) {
-    localStorage.setItem("screenmate_recruiterId", recruiterId);
-    // clean the URL so the ID isn't sitting in the address bar / browser history
+  let sessionToken = params.get("session");
+  if (sessionToken) {
+    localStorage.setItem("screenmate_session", sessionToken);
     history.replaceState({}, "", location.pathname);
   } else {
-    recruiterId = localStorage.getItem("screenmate_recruiterId");
+    sessionToken = localStorage.getItem("screenmate_session");
   }
 
   const connectCard = document.getElementById("connect-card");
@@ -177,7 +176,7 @@
 
   connectLink.href = `${API_BASE}/auth/microsoft/start`;
 
-  if (!recruiterId) {
+  if (!sessionToken) {
     connectCard.style.display = "block";
   } else {
     createCard.style.display = "block";
@@ -193,9 +192,18 @@
     try {
       const res = await fetch(`${API_BASE}/api/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recruiterId, roleName }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ roleName }),
       });
+      if (res.status === 401) {
+        alert("Your session has expired — please reconnect OneDrive.");
+        localStorage.removeItem("screenmate_session");
+        location.reload();
+        return;
+      }
       if (!res.ok) throw new Error("failed");
       roleInput.value = "";
       await loadLinks();
@@ -208,7 +216,14 @@
   });
 
   async function loadLinks() {
-    const res = await fetch(`${API_BASE}/api/links?recruiterId=${encodeURIComponent(recruiterId)}`);
+    const res = await fetch(`${API_BASE}/api/links`, {
+      headers: { "Authorization": `Bearer ${sessionToken}` },
+    });
+    if (res.status === 401) {
+      localStorage.removeItem("screenmate_session");
+      location.reload();
+      return;
+    }
     const links = await res.json();
     if (links.length === 0) {
       linksList.innerHTML = `<div class="empty-note">No screening links yet — create your first one above.</div>`;
