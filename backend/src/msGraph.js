@@ -3,8 +3,6 @@ import axios from "axios";
 const AUTHORITY = `https://login.microsoftonline.com/${process.env.MS_TENANT || "common"}`;
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
-// Scopes needed: read/write the recruiter's own OneDrive files, stay signed
-// in via a refresh token (offline_access), and read basic profile info.
 const SCOPES = "offline_access Files.ReadWrite User.Read";
 
 export function buildMicrosoftLoginUrl(state) {
@@ -33,7 +31,6 @@ export async function exchangeCodeForTokens(code) {
     params.toString(),
     { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
   );
-  // data.access_token, data.refresh_token, data.expires_in
   return data;
 }
 
@@ -53,17 +50,17 @@ export async function refreshAccessToken(refreshToken) {
   return data;
 }
 
-/**
- * Uploads a video buffer directly into the recruiter's OneDrive under
- * /ScreenMate Interviews/{candidateFolder}/{fileName}.
- *
- * NOTE: This "simple upload" endpoint works for files under 4MB. Screening
- * videos will usually be bigger than that, so before going live, swap this
- * for a Graph "upload session" (chunked upload) — see the TODO below. This
- * function is left simple for a first working version and to make the
- * concept clear.
- */
+const FOUR_MB = 4 * 1024 * 1024;
+const CHUNK_SIZE = 5 * 1024 * 1024;
+
 export async function uploadToOneDrive({ accessToken, candidateFolder, fileName, fileBuffer }) {
+  if (fileBuffer.length <= FOUR_MB) {
+    return uploadSmallFile({ accessToken, candidateFolder, fileName, fileBuffer });
+  }
+  return uploadLargeFile({ accessToken, candidateFolder, fileName, fileBuffer });
+}
+
+async function uploadSmallFile({ accessToken, candidateFolder, fileName, fileBuffer }) {
   const path = encodeURIComponent(`/ScreenMate Interviews/${candidateFolder}/${fileName}`);
   const url = `${GRAPH_BASE}/me/drive/root:/${path}:/content`;
 
@@ -76,9 +73,36 @@ export async function uploadToOneDrive({ accessToken, candidateFolder, fileName,
     maxContentLength: Infinity,
   });
 
-  return data; // includes the OneDrive webUrl for the uploaded file
+  return data;
 }
 
-// TODO before production: implement createUploadSession() +
-// chunked PUT requests per Microsoft's Graph docs for files > 4MB:
-// https://learn.microsoft.com/en-us/graph/api/driveitem-createuploadsession
+async function uploadLargeFile({ accessToken, candidateFolder, fileName, fileBuffer }) {
+  const path = encodeURIComponent(`/ScreenMate Interviews/${candidateFolder}/${fileName}`);
+
+  const { data: session } = await axios.post(
+    `${GRAPH_BASE}/me/drive/root:/${path}:/createUploadSession`,
+    { item: { "@microsoft.graph.conflictBehavior": "rename" } },
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const uploadUrl = session.uploadUrl;
+  const totalSize = fileBuffer.length;
+  let lastResponseData = null;
+
+  for (let start = 0; start < totalSize; start += CHUNK_SIZE) {
+    const end = Math.min(start + CHUNK_SIZE, totalSize);
+    const chunk = fileBuffer.subarray(start, end);
+
+    const { data } = await axios.put(uploadUrl, chunk, {
+      headers: {
+        "Content-Length": chunk.length,
+        "Content-Range": `bytes ${start}-${end - 1}/${totalSize}`,
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    });
+    lastResponseData = data;
+  }
+
+  return lastResponseData;
+}
