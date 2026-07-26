@@ -280,8 +280,8 @@
 
 <script>
   // ---- CONFIG: point this at your deployed backend ----
-  const API_BASE = "https://screenmate-jpvf.onrender.com"; // TODO: replace with your deployed backend URL
-  const GOOGLE_CLIENT_ID = "1088895032980-r11u12v6gpkofddt5be7d7o5s33p0fid.apps.googleusercontent.com"; // TODO: fill in
+  const API_BASE = "http://localhost:3000"; // TODO: replace with your deployed backend URL
+  const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"; // TODO: fill in
 
   const params = new URLSearchParams(location.search);
   const linkId = params.get("link");
@@ -311,8 +311,14 @@
 
   async function loadLink() {
     const res = await fetch(`${API_BASE}/api/links/${linkId}`);
+    if (res.status === 410) {
+      roleTitle.textContent = "This screening link has already been used.";
+      document.querySelector(".card").style.display = "none";
+      return;
+    }
     if (!res.ok) {
       roleTitle.textContent = "This interview link isn't valid.";
+      document.querySelector(".card").style.display = "none";
       return;
     }
     const data = await res.json();
@@ -335,10 +341,11 @@
     const res = await fetch(`${API_BASE}/api/candidate/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken: response.credential }),
+      body: JSON.stringify({ idToken: response.credential, linkId }),
     });
     if (!res.ok) {
-      alert("Sign-in failed, please try again.");
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || "Sign-in failed, please try again.");
       return;
     }
     candidate = await res.json();
