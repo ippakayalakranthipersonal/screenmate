@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ScreenMate — Recruiter Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F7F5F1;
+    --ink: #1C1E1B;
+    --ink-soft: #52564F;
+    --teal: #16423C;
+    --teal-soft: #E4ECEA;
+    --brass: #C48A3B;
+    --sage: #7C8B7A;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 32px 20px 80px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    color: var(--sage);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 30px;
+    color: var(--teal);
+    margin: 0 0 8px;
+  }
+  p.sub { color: var(--ink-soft); font-size: 15px; line-height: 1.6; margin: 0 0 28px; }
+  .card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 28px;
+    border: 1px solid #E5E2DA;
+    margin-bottom: 20px;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--teal);
+    background: var(--teal-soft);
+    padding: 6px 12px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  input[type=text] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #D8D4C9;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    margin-bottom: 14px;
+  }
+  button.primary {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 22px;
+    cursor: pointer;
+    width: 100%;
+  }
+  button.primary:disabled { background: #C9C6BD; cursor: not-allowed; }
+  a.connect-btn {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    background: var(--teal);
+    color: #fff;
+    border-radius: 10px;
+    padding: 14px 22px;
+  }
+  .link-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid #EEEBE3;
+  }
+  .link-row:last-child { border-bottom: none; }
+  .link-role { font-weight: 600; font-size: 14px; }
+  .link-date { font-size: 12px; color: var(--sage); font-family: 'IBM Plex Mono', monospace; }
+  button.copy-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--teal-soft);
+    color: var(--teal);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .empty-note { color: var(--sage); font-size: 14px; text-align: center; padding: 20px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">ScreenMate</div>
+  <h1>Recruiter dashboard</h1>
+  <p class="sub">Connect your OneDrive once, then create screening links for any role — every candidate recording saves straight into your own OneDrive.</p>
+
+  <!-- Not connected yet -->
+  <div id="connect-card" class="card" style="display:none;">
+    <p class="sub" style="margin-bottom:20px;">You haven't connected OneDrive on this device yet. Connect it to create your first screening link.</p>
+    <a class="connect-btn" id="connect-link" href="#">Connect my OneDrive</a>
+  </div>
+
+  <!-- Connected: create a link -->
+  <div id="create-card" class="card" style="display:none;">
+    <div class="status-pill">✅ OneDrive connected</div>
+    <label for="role-input">Role name</label>
+    <input type="text" id="role-input" placeholder="e.g. Frontend Engineer" />
+    <button class="primary" id="create-btn">Create screening link</button>
+  </div>
+
+  <!-- Existing links -->
+  <div id="links-card" class="card" style="display:none;">
+    <div id="links-list"></div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = "https://screenmate-jpvf.onrender.com"; // your backend URL
+
+  const params = new URLSearchParams(location.search);
+  let recruiterId = params.get("recruiterId");
+  if (recruiterId) {
+    localStorage.setItem("screenmate_recruiterId", recruiterId);
+    // clean the URL so the ID isn't sitting in the address bar / browser history
+    history.replaceState({}, "", location.pathname);
+  } else {
+    recruiterId = localStorage.getItem("screenmate_recruiterId");
+  }
+
+  const connectCard = document.getElementById("connect-card");
+  const createCard = document.getElementById("create-card");
+  const linksCard = document.getElementById("links-card");
+  const linksList = document.getElementById("links-list");
+  const connectLink = document.getElementById("connect-link");
+  const roleInput = document.getElementById("role-input");
+  const createBtn = document.getElementById("create-btn");
+
+  connectLink.href = `${API_BASE}/auth/microsoft/start`;
+
+  if (!recruiterId) {
+    connectCard.style.display = "block";
+  } else {
+    createCard.style.display = "block";
+    linksCard.style.display = "block";
+    loadLinks();
+  }
+
+  createBtn.addEventListener("click", async () => {
+    const roleName = roleInput.value.trim();
+    if (!roleName) { roleInput.focus(); return; }
+    createBtn.disabled = true;
+    createBtn.textContent = "Creating…";
+    try {
+      const res = await fetch(`${API_BASE}/api/links`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recruiterId, roleName }),
+      });
+      if (!res.ok) throw new Error("failed");
+      roleInput.value = "";
+      await loadLinks();
+    } catch (e) {
+      alert("Couldn't create the link. Check your connection and try again.");
+    } finally {
+      createBtn.disabled = false;
+      createBtn.textContent = "Create screening link";
+    }
+  });
+
+  async function loadLinks() {
+    const res = await fetch(`${API_BASE}/api/links?recruiterId=${encodeURIComponent(recruiterId)}`);
+    const links = await res.json();
+    if (links.length === 0) {
+      linksList.innerHTML = `<div class="empty-note">No screening links yet — create your first one above.</div>`;
+      return;
+    }
+    linksList.innerHTML = links.map((l) => `
+      <div class="link-row">
+        <div>
+          <div class="link-role">${escapeHtml(l.roleName || "Untitled role")}</div>
+          <div class="link-date">${new Date(l.createdAt).toLocaleDateString()}</div>
+        </div>
+        <button class="copy-btn" onclick="copyLink('${l.screeningUrl}', this)">Copy link</button>
+      </div>
+    `).join("");
+  }
+
+  function copyLink(url, btn) {
+    navigator.clipboard.writeText(url).then(() => {
+      const original = btn.textContent;
+      btn.textContent = "Copied ✓";
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+</body>
+</html>
