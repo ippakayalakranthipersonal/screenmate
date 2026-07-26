@@ -21,6 +21,7 @@ import {
   getSubmissions,
   createSession,
   getRecruiterIdFromSession,
+  markLinkCompleted,
 } from "./store.js";
 import { DEFAULT_QUESTIONS } from "./questions.js";
 
@@ -72,12 +73,12 @@ async function requireSession(req, res, next) {
 // ---------- RECRUITER: create / list screening links ----------
 
 app.post("/api/links", requireSession, async (req, res) => {
-  const { roleName, questions } = req.body;
+  const { roleName, candidateEmail, questions } = req.body;
   const recruiterId = req.recruiterId;
   if (!(await getRecruiterTokens(recruiterId))) {
     return res.status(400).json({ error: "Recruiter has not connected OneDrive yet." });
   }
-  const linkId = await createScreeningLink(recruiterId, roleName, questions || DEFAULT_QUESTIONS);
+  const linkId = await createScreeningLink(recruiterId, roleName, candidateEmail, questions || DEFAULT_QUESTIONS);
   const pageUrl = process.env.CANDIDATE_PAGE_URL || `${process.env.FRONTEND_URL}/interview.html`;
   res.json({ linkId, screeningUrl: `${pageUrl}?link=${linkId}` });
 });
@@ -98,6 +99,9 @@ app.get("/api/links/:linkId/submissions", async (req, res) => {
 app.get("/api/links/:linkId", async (req, res) => {
   const link = await getScreeningLink(req.params.linkId);
   if (!link) return res.status(404).json({ error: "Screening link not found." });
+  if (link.completedAt) {
+    return res.status(410).json({ error: "This screening link has already been used." });
+  }
   res.json({ roleName: link.roleName, questions: link.questions });
 });
 
@@ -106,6 +110,23 @@ app.get("/api/links/:linkId", async (req, res) => {
 app.post("/api/candidate/verify", async (req, res) => {
   try {
     const identity = await verifyGoogleToken(req.body.idToken);
+
+    const linkId = req.body.linkId;
+    const link = linkId ? await getScreeningLink(linkId) : null;
+
+    // If the recruiter specified who this link is for, only that exact
+    // email can proceed — this stops a forwarded link from being used by
+    // someone other than the intended candidate.
+    if (link?.candidateEmail) {
+      const expected = link.candidateEmail.trim().toLowerCase();
+      const actual = identity.email.trim().toLowerCase();
+      if (expected !== actual) {
+        return res.status(403).json({
+          error: `This screening link was created for a different email address. Please sign in with ${link.candidateEmail}.`,
+        });
+      }
+    }
+
     res.json(identity);
   } catch (err) {
     res.status(401).json({ error: "Invalid Google sign-in." });
@@ -117,6 +138,7 @@ app.post("/api/candidate/verify", async (req, res) => {
 app.post("/api/links/:linkId/upload", upload.single("video"), async (req, res) => {
   const link = await getScreeningLink(req.params.linkId);
   if (!link) return res.status(404).json({ error: "Screening link not found." });
+  if (link.completedAt) return res.status(410).json({ error: "This screening link has already been used." });
 
   let tokens = await getRecruiterTokens(link.recruiterId);
   if (!tokens) return res.status(400).json({ error: "Recruiter's OneDrive not connected." });
@@ -150,6 +172,7 @@ app.post("/api/links/:linkId/complete", async (req, res) => {
     candidateName: req.body.candidateName,
     candidateEmail: req.body.candidateEmail,
   });
+  await markLinkCompleted(req.params.linkId);
   res.json({ ok: true });
 });
 
