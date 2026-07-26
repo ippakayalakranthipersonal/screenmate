@@ -44,7 +44,31 @@ export async function initDb() {
       submitted_at TIMESTAMPTZ DEFAULT now()
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      session_token TEXT PRIMARY KEY,
+      recruiter_id TEXT NOT NULL REFERENCES recruiters(recruiter_id),
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+  `);
   console.log("Database tables ready.");
+}
+
+export async function createSession(recruiterId) {
+  const sessionToken = nanoid(32); // long and random — this is the real secret now
+  await pool.query(
+    `INSERT INTO sessions (session_token, recruiter_id) VALUES ($1, $2)`,
+    [sessionToken, recruiterId]
+  );
+  return sessionToken;
+}
+
+export async function getRecruiterIdFromSession(sessionToken) {
+  const { rows } = await pool.query(
+    `SELECT recruiter_id FROM sessions WHERE session_token = $1`,
+    [sessionToken]
+  );
+  return rows.length > 0 ? rows[0].recruiter_id : null;
 }
 
 export async function saveRecruiterTokens(recruiterId, tokenData, displayName = null) {
