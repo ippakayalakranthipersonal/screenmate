@@ -227,7 +227,7 @@
   <div id="screen-signin">
     <div class="eyebrow">Screening interview</div>
     <h1 id="role-title">Loading your interview…</h1>
-    <p class="sub">This should take about 8–10 minutes. You'll answer a
+    <p class="sub" id="intro-text">This should take about 8–10 minutes. You'll answer a
       short set of questions on camera, one at a time — there's no live
       person on the other end, so take your time with each answer.</p>
 
@@ -313,11 +313,13 @@
     const res = await fetch(`${API_BASE}/api/links/${linkId}`);
     if (res.status === 410) {
       roleTitle.textContent = "This screening link has already been used.";
+      document.getElementById("intro-text").style.display = "none";
       document.querySelector(".card").style.display = "none";
       return;
     }
     if (!res.ok) {
       roleTitle.textContent = "This interview link isn't valid.";
+      document.getElementById("intro-text").style.display = "none";
       document.querySelector(".card").style.display = "none";
       return;
     }
