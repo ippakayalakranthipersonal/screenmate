@@ -145,6 +145,8 @@
     <div class="status-pill">✅ OneDrive connected</div>
     <label for="role-input">Role name</label>
     <input type="text" id="role-input" placeholder="e.g. Frontend Engineer" />
+    <label for="email-input">Candidate's email (optional, but recommended)</label>
+    <input type="text" id="email-input" placeholder="e.g. candidate@example.com" />
     <button class="primary" id="create-btn">Create screening link</button>
   </div>
 
@@ -172,6 +174,7 @@
   const linksList = document.getElementById("links-list");
   const connectLink = document.getElementById("connect-link");
   const roleInput = document.getElementById("role-input");
+  const emailInput = document.getElementById("email-input");
   const createBtn = document.getElementById("create-btn");
 
   connectLink.href = `${API_BASE}/auth/microsoft/start`;
@@ -196,7 +199,7 @@
           "Content-Type": "application/json",
           "Authorization": `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({ roleName }),
+        body: JSON.stringify({ roleName, candidateEmail: emailInput.value.trim() || null }),
       });
       if (res.status === 401) {
         alert("Your session has expired — please reconnect OneDrive.");
@@ -206,6 +209,7 @@
       }
       if (!res.ok) throw new Error("failed");
       roleInput.value = "";
+      emailInput.value = "";
       await loadLinks();
     } catch (e) {
       alert("Couldn't create the link. Check your connection and try again.");
