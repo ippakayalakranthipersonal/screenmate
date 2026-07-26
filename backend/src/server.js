@@ -122,7 +122,7 @@ app.post("/api/candidate/verify", async (req, res) => {
       const actual = identity.email.trim().toLowerCase();
       if (expected !== actual) {
         return res.status(403).json({
-          error: `This screening link was created for a different email address. Please sign in with ${link.candidateEmail}.`,
+          error: "This screening link isn't valid for the Google account you're signed in with. Please contact the recruiter if you believe this is an error.",
         });
       }
     }
