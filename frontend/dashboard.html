@@ -126,11 +126,31 @@
     white-space: nowrap;
   }
   .empty-note { color: var(--sage); font-size: 14px; text-align: center; padding: 20px 0; }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .logout-link {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sage);
+    text-decoration: none;
+    padding: 6px 0;
+    white-space: nowrap;
+  }
+  .logout-link:hover { color: var(--teal); }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">The Hire Lens</div>
+  <div class="top-bar">
+    <div class="eyebrow">The Hire Lens</div>
+    <a href="#" class="logout-link" id="logout-link" style="display:none;">Log out</a>
+  </div>
   <h1>Recruiter dashboard</h1>
   <p class="sub">Connect your OneDrive once, then create screening links for any role — every candidate recording saves straight into your own OneDrive.</p>
 
@@ -173,6 +193,7 @@
   const linksCard = document.getElementById("links-card");
   const linksList = document.getElementById("links-list");
   const connectLink = document.getElementById("connect-link");
+  const logoutLink = document.getElementById("logout-link");
   const roleInput = document.getElementById("role-input");
   const emailInput = document.getElementById("email-input");
   const createBtn = document.getElementById("create-btn");
@@ -184,8 +205,17 @@
   } else {
     createCard.style.display = "block";
     linksCard.style.display = "block";
+    logoutLink.style.display = "inline";
     loadLinks();
   }
+
+  logoutLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (confirm("Log out of this dashboard? You'll need to reconnect OneDrive to create new links.")) {
+      localStorage.removeItem("screenmate_session");
+      location.reload();
+    }
+  });
 
   createBtn.addEventListener("click", async () => {
     const roleName = roleInput.value.trim();
